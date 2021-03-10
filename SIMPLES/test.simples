@@ -1,0 +1,55 @@
+/* Exemplo de um programa escrito em SIMPLES */
+
+programa
+inicio
+   inteiro a;
+   inteiro b <- 5;
+   inteiro c;
+   inteiro f;
+   inteiro i;
+   flutuante d;
+
+   leia a;
+   leia c;
+   leia f;
+   leia d;
+
+   b <- (a + b) * c div c;
+   f <- 5 + 2;
+   c <- c + f * 5;
+
+   escreva b;
+   escreva f;
+   escreva c;
+   escreva d;
+
+   se b > f entao
+      escreva b;
+   senao 
+      escreva f;
+   fimse
+
+   se a = 5 entao
+      se b > 5 entao
+          se c < 10 entao
+              escreva a + b + c;
+          fimse
+      fimse
+   fimse
+
+   enquanto (b > f e a < 1000) ou a < f faca
+      escreva f * 10 ;
+      f <- f - 1 ;
+      enquanto(b = 10) faca
+         escreva b;
+         b <- b - 2;
+      fimenquanto
+    fimenquanto
+
+
+    para i de 1 ate 10 passo 2 faca
+      escreva i;
+    fimpara 
+
+fim
+

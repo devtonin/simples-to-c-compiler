@@ -1,0 +1,84 @@
+<project name="simples-compiler" basedir="." default="main">
+
+    <property name="src.flex" value="${basedir}/flex/" />
+    <property name="input.flex" value="simples.flex" />
+    <property name="output.flex" value="SimplesLexer.java" />
+    <property name="src.cups" value="${basedir}/cups/" />
+    <property name="input.cups" value="simples.cup" />
+    <property name="output.cups" value="parser.java" />
+    <property name="src.dir" value="src" />
+    <property name="lib.dir" value="lib" />
+    <property name="build.dir" value="build" />
+    <property name="classes.dir" value="${build.dir}/classes" />
+    <property name="jar.dir" value="${build.dir}/jar" />
+    <property name="main-class" value="CompiladorSimples" />
+
+    <path id="classpath">
+        <fileset dir="${lib.dir}" includes="**/*.jar" />
+    </path>
+
+    <target name="flex">
+        <delete file="${basedir}/flex/${output.flex}" />
+
+        <exec dir="${src.flex}" executable="java">
+            <arg value="-jar" />
+            <arg value="JFlex.jar" />
+            <arg value="${input.flex}" />
+        </exec>
+        <copy file="${basedir}/flex/${output.flex}" todir="${basedir}/${src.dir}" />
+        <delete file="${basedir}/flex/${output.flex}" />
+    </target>
+
+    <target name="cups">
+        <delete>
+            <fileset dir="${basedir}/cups/" includes="**/*.java" />
+        </delete>
+
+        <exec dir="${src.cups}" executable="java">
+            <arg value="-jar" />
+            <arg value="java-cup-11b.jar" />
+            <arg value="${input.cups}" />
+        </exec>
+
+        <copy todir="${basedir}/${src.dir}">
+            <fileset dir="${basedir}/cups/" includes="**/*.java" />
+        </copy>
+
+
+        <delete>
+            <fileset dir="${basedir}/cups/" includes="**/*.java" />
+        </delete>
+
+    </target>
+
+   
+    <target name="clean">
+        <delete dir="${build.dir}" />
+    </target>
+
+    <target name="compile">
+        <mkdir dir="${classes.dir}" />
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" includeantruntime="false" />
+    </target>
+
+    <target name="jar" depends="compile">
+        <mkdir dir="${jar.dir}" />
+        <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main-class}" />
+            </manifest>
+            <zipgroupfileset dir="${lib.dir}" includes="**/*.jar" />
+        </jar>
+    </target>
+
+    <target name="run" depends="jar">
+        <java jar="${jar.dir}/${ant.project.name}.jar" fork="true">
+            <arg line="${basedir}/test.simples" />
+            <redirector output="test.c" alwayslog="true"/> 
+        </java>
+    </target>
+
+    <target name="clean-build" depends="clean,jar" />
+   <target name="main" depends="clean,flex,cups,run" />
+
+</project>

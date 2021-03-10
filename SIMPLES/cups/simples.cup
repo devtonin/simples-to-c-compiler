@@ -1,0 +1,369 @@
+/* ----------------------Preliminary Declarations Section--------------------*/
+   
+/* Import the class java_cup.runtime.*  */
+import java_cup.runtime.*;
+import java.util.*;
+import java.util.Stack;
+   
+parser code {:
+      
+    
+    public void report_error(String message, Object info) {
+        StringBuilder m = new StringBuilder("Error");
+   
+        if (info instanceof java_cup.runtime.Symbol) {
+            java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
+   
+            if (s.left >= 0) {                
+                m.append(" in line "+(s.left+1));   
+                if (s.right >= 0)                    
+                    m.append(", column "+(s.right+1));
+            }
+        }
+   
+        m.append(" : "+message);
+   
+        System.err.println(m);
+    }
+   
+    public void report_fatal_error(String message, Object info) {
+        report_error(message, info);
+        System.exit(1);
+    }
+
+    class TabelaSimbolo {
+
+       private String tipo;
+       private boolean EhVetor;
+      
+     
+      TabelaSimbolo(String tipo,boolean EhVetor){
+          this.tipo = tipo;  
+          this.EhVetor = EhVetor;
+      }
+
+       public String getTipo(){
+          return tipo;
+       }
+
+       public boolean getEhVetor() {
+          return EhVetor;
+       }
+  }
+
+  
+  private Hashtable<String,TabelaSimbolo> dicionario = new Hashtable<String,TabelaSimbolo>();
+  private int pos = 0;
+
+  /* emitir código C */
+
+    public void emit_program(){
+       System.out.print("#include <stdio.h>\n");
+       System.out.print("#include <stdlib.h>\n");
+       System.out.print("\nint main()");
+    }
+
+    public void emit_startblock(){
+       System.out.print("{");
+       format_code(pos++);
+       System.out.print("\n");
+
+    }
+
+ 
+     public void emit_endblock(){
+       format_code(--pos);
+       System.out.print("}");
+       System.out.print("\n");
+       
+    }
+
+     public void emit_return(){
+       format_code(pos); 
+       System.out.print("return 0;\n");
+
+    }
+
+    public void emit_semi(){
+        System.out.print(";\n");
+    }
+                                                                
+    public void emit_declaracao_variavel_com_atribuicao(String id, String tipo, String value){
+
+       format_code(pos); 
+
+       if(dicionario.containsKey(id)){
+        report_fatal_error("Variável duplicada [" + id + "]",null);
+       }
+        else {  
+        if(tipo.equals("INT")) {
+            System.out.print("int " + id + "=" + value);
+        } else {
+            System.out.print("float " + id + "=" + value);
+        }
+
+        dicionario.put(id, new TabelaSimbolo(tipo,false));                                  
+       }
+    }
+
+    public void emit_declaracao_variavel(String id, String tipo){
+
+      format_code(pos); 
+
+      if(dicionario.containsKey(id)){
+        report_fatal_error("Variável duplicada [" + id + "]",null);
+      } else {  
+        if(tipo.equals("INT")) {
+            System.out.print("int " + id);
+        } else {
+            System.out.print("float " + id);
+        }
+
+        dicionario.put(id, new TabelaSimbolo(tipo,false));
+      }
+    }
+
+    public void emit_atribuicao(String id, String value){
+
+        format_code(pos); 
+
+        if(! dicionario.containsKey(id)){
+            report_fatal_error("Variável não declarada [" + id + "]",null);
+        }
+        System.out.print(id + "=" + value); 
+    }
+
+    public void emit_escreva(String id){
+
+        format_code(pos);  
+
+     TabelaSimbolo t1 = dicionario.get(id);  
+      if(t1 == null) {
+         report_fatal_error("Variável não declarada [" + id + "]",null);
+      }  
+
+      String tipo = t1.getTipo();
+
+         if(tipo.equals("INT")) {
+           System.out.print("printf(\"\\n%d\"," + id + ")") ;
+         } else {
+            System.out.print("printf(\"\\n%f\"," + id + ")") ;
+         }   
+      }
+
+    public void emit_leia(String id){
+
+       format_code(pos);   
+
+      TabelaSimbolo t1 = dicionario.get(id);  
+      if(t1 == null) {
+         report_fatal_error("Variável não declarada [" + id + "]",null);
+      }    
+
+        String tipo = t1.getTipo();
+
+         if(tipo.equals("INT")) {
+            System.out.print("scanf(\"%d\",&" + id + ")") ;
+         } else {
+            System.out.print("scanf(\"%f\",&" + id + ")");
+         }   
+      }
+
+    public void emit_if(String value){
+           format_code(pos); 
+           
+         System.out.print("if("+ value +")");
+    }
+
+    public void emit_else(){
+
+           format_code(pos); 
+
+         System.out.print("else");
+    }
+
+    public void emit_for(String id, String n1, String n2, String n3){
+
+      format_code(pos); 
+      TabelaSimbolo t1 = dicionario.get(id);  
+      if(t1 == null) {
+         report_fatal_error("Variável não declarada [" + id + "]",null);
+      }    
+
+         System.out.print("for("+ id +" = "+ n1 +";"+ id +" < "+ n2 +";"+ id+ " += "+ n3 +")");
+      
+    }
+
+   public void emit_while(String value){
+        format_code(pos); 
+         TabelaSimbolo t1 = dicionario.get(value);  
+      if(t1 == null) {
+         report_fatal_error("Variável não declarada [" + value + "]",null);
+      }   
+       System.out.print("while("+value+")");
+    }
+
+    /* métodos auxiliares */
+    public String checkExpr(String e1, String e2){   
+        String tipoE1 = "", tipoE2 = "";                                                      
+
+        if(e1 != null){
+            TabelaSimbolo t1 = dicionario.get(e1);  
+
+             if(t1 == null) {
+                 report_fatal_error("Variável não declarada [" + e1 + "]",null);
+                }
+
+            tipoE1 = t1.getTipo();    
+        
+
+            if(e2 != null){
+                TabelaSimbolo t2 = dicionario.get(e2);  
+                if(t2 == null) {
+                 report_fatal_error("Variável não declarada [" + e2 + "]",null);
+                }
+
+                tipoE2 = t2.getTipo(); 
+            }
+
+        }
+
+        if(! tipoE2.equals("")){
+
+            if(! tipoE1.equals(tipoE2)){
+                report_fatal_error("Linguagem não permite operações com tipos diferentes !",null);
+            }
+        }
+
+        return tipoE1;
+    }
+
+     public void format_code(int pos){
+       for(int i=0; i < pos * 3; i++){
+          System.out.print(" ");  
+       }
+    }
+
+:};
+   
+
+   
+/* ------------Declaration of Terminals and Non Terminals Section----------- */
+/* Terminals (tokens returned by the scanner). */
+terminal            PLUS, MINUS, TIMES, DIVIDE,  LPAREN, RPAREN, LBRCKT, RBRCKT, EQUALS, GREATER,LESS, PROGRAM, STARTPRG, ENDPRG, READLINE, WRITELINE,DECLINT,DECLFLOAT, E, OU, NAO;
+terminal            IFF, SEMI, THENN,  ELSEE, ENDELSE, ATTRIB, PARA, DE, ATE, PASSO, FACA, FIMPARA, ENQUANTO, FIMENQUANTO;
+terminal String	    ID;
+terminal String     INTT;      
+terminal String     FLOATT;
+
+/* Non terminals */
+non terminal             program, list_command, command, assign , declare_variable, writel, readl,if,elsepart,for,while;
+non terminal  String    expr,tipo,vetor;      
+
+/* Precedences */
+precedence left EQUALS;
+precedence left GREATER, LESS;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
+precedence left LPAREN, RPAREN;
+precedence left LBRCKT, RBRCKT; 
+precedence left E, OU, NAO;
+
+
+
+/* The grammar rules */
+program ::= PROGRAM        {: emit_program(); :} 
+            STARTPRG       {: emit_startblock();            :} 
+            list_command   
+            ENDPRG         {: emit_endblock() ;            :}
+            ;
+
+list_command ::= list_command command 
+            |  /* empty */
+            ;
+
+command ::=    declare_variable 
+            |  assign
+            |  readl
+            |  writel
+            |  if
+            |  for
+            |  while            
+            ;
+          
+
+tipo ::=      DECLINT:t   {: RESULT = "INT"  ;     :}
+            | DECLFLOAT:t {: RESULT = "FLOAT";     :}
+            ;
+   
+
+declare_variable ::=  tipo:t  ID:id 
+                      ATTRIB
+                      expr:value   {: emit_declaracao_variavel_com_atribuicao(id,  t,  value); :}
+                      SEMI         {: emit_semi(); :}
+                    
+                     | tipo:t ID:id {: emit_declaracao_variavel(id,t);  :} 
+                       SEMI         {:  emit_semi(); :}
+                     ;
+
+
+assign		::=   ID:id 
+                  ATTRIB 
+                  expr:value        {: emit_atribuicao(id,value); :} 
+                  SEMI              {: emit_semi(); :}                             
+                 ;                                   
+
+                                                                                    
+writel      ::= WRITELINE
+                expr:value {: emit_escreva(value);  :}                                                   
+                SEMI       {: emit_semi();          :}
+            ;
+
+readl      ::= READLINE 
+               expr:id       {: emit_leia(id); :}
+               SEMI          {: emit_semi();:}
+            ;
+
+if          ::= IFF 
+                expr:value    {: emit_if(value);   :}
+                THENN         {: emit_startblock();  :}
+                list_command
+                elsepart  
+                ENDELSE       {: emit_endblock();       :}
+                ;
+
+elsepart      ::=  ELSEE      {: emit_endblock(); emit_else(); emit_startblock(); :}
+                   list_command
+                   | /* empty */
+                   ;
+
+for         ::= PARA ID:id DE INTT:n1 ATE INTT:n2 PASSO INTT:n3 FACA {: emit_for(id,n1,n2,n3); emit_startblock();  :}
+                list_command
+                FIMPARA {:  emit_endblock(); :}
+            ;
+
+while       ::= ENQUANTO expr:value {: emit_while(value); :}
+                FACA                {: emit_startblock();  :}
+                list_command
+                FIMENQUANTO         {:  emit_endblock(); :}
+            ;                                                       
+                                                                                         
+                                                      
+
+expr     ::= expr:e1 PLUS expr:e2         {: RESULT =  e1 + "+" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false));  :}
+	       | expr:e1 MINUS expr:e2        {: RESULT =  e1 + "-" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false)); :}
+           | expr:e1 TIMES expr:e2        {: RESULT =  e1 + "*" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false));  :}  
+	       | expr:e1 DIVIDE expr:e2       {: RESULT =  e1 + "/" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false));  :}  
+           | expr:e1 EQUALS expr:e2       {: RESULT =  e1 + "==" + e2; dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false));  :}
+           | expr:e1 GREATER expr:e2      {: RESULT =  e1 + ">" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false)); :}
+           | expr:e1 LESS expr:e2         {: RESULT =  e1 + "<" + e2;  dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false)); :}
+           | expr:e1 E expr:e2            {: RESULT =  e1 + "&&" + e2; dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false)); :}
+           | expr:e1 OU expr:e2           {: RESULT =  e1 + "||" + e2; dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,e2),false)); :}
+           | NAO expr:e1                 {: RESULT =   "!" + e1;    ;                    :}
+           | LPAREN  
+             expr:e1                      {: RESULT =  "(" + e1  + ")"; dicionario.put(RESULT,new TabelaSimbolo(checkExpr(e1,null),false));:} 
+             RPAREN   
+           | ID:i                         {: RESULT = i;  /* detectar variavel nao declarada */ checkExpr(i,null);             :}
+           | INTT: n                      {: RESULT = n;  dicionario.put(RESULT,new TabelaSimbolo("INT",false));               :}
+           | FLOATT:n                     {: RESULT = n;  dicionario.put(RESULT,new TabelaSimbolo("FLOAT",false));             :}
+           ;
